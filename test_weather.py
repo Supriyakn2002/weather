@@ -1,45 +1,26 @@
-import pytest
 from weather import get_weather
+from unittest.mock import patch
 
-def test_get_weather_success(monkeypatch):
-    class MockResponse:
-        status_code = 200
-        def json(self):
-            return {
-                "current": {
-                    "temp_c": 25,
-                    "condition": {"text": "Sunny"},
-                    "humidity": 60
-                }
-            }
+@patch("requests.get")
+def test_get_weather_success(mock_get):
+    mock_get.return_value.status_code = 200
+    mock_get.return_value.json.return_value = {
+        "current": {"temp_c": 25, "condition": {"text": "Sunny"}, "humidity": 60}
+    }
 
-    def mock_get(*args, **kwargs):
-        return MockResponse()
+    result = get_weather("Bangalore", "fake_api_key")
 
-    # Mocking requests.get
-    import requests
-    monkeypatch.setattr(requests, "get", mock_get)
+    assert result == {
+        "city": "Bangalore",
+        "temp_c": 25,
+        "condition": "Sunny",
+        "humidity": 60
+    }
 
-    api_key = "fake_api_key"
-    city = "Bangalore"
-    result = get_weather(city, api_key)
+@patch("requests.get")
+def test_get_weather_failure(mock_get):
+    mock_get.return_value.status_code = 404
+    mock_get.return_value.json.return_value = {}
 
-    assert result["city"] == "Bangalore"
-    assert result["temp_c"] == 25
-    assert result["condition"] == "Sunny"
-    assert result["humidity"] == 60
+    assert get_weather("InvalidCity", "fake_api_key") is None
 
-def test_get_weather_failure(monkeypatch):
-    class MockResponse:
-        status_code = 404
-        def json(self):
-            return {}
-
-    def mock_get(*args, **kwargs):
-        return MockResponse()
-
-    import requests
-    monkeypatch.setattr(requests, "get", mock_get)
-
-    result = get_weather("InvalidCity", "fake_api_key")
-    assert result is None
